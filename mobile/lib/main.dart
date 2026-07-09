@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'type': 'join',
         'role': 'phone',
         'roomCode': code,
-        'version': 'v0.3-r1',
+        'version': 'v0.3-r2',
       }));
 
       socket.listen(
@@ -284,18 +284,18 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await MirrorBridge.startCapture();
       if (!mounted) return;
       setState(() {
-        _mirroring = true;
-        _status = result == 'capturing'
-            ? 'Espelhamento experimental ativo. Frames enviados: $_frameCount.'
+        _mirroring = result == 'capturing' || result == 'permission_granted';
+        _status = result == 'capturing' || result == 'permission_granted'
+            ? 'Permissão aceita. Aguardando primeiro frame real...'
             : 'Permissão solicitada. Toque em Iniciar agora quando o Android pedir.';
       });
-    } catch (_) {
+    } catch (error) {
       await _frameSub?.cancel();
       _frameSub = null;
       if (!mounted) return;
       setState(() {
         _mirroring = false;
-        _status = 'Não consegui iniciar a captura. Permissão negada ou API indisponível.';
+        _status = 'Falha ao iniciar captura: ${error.toString()}';
       });
     }
   }
@@ -310,6 +310,15 @@ class _HomeScreenState extends State<HomeScreen> {
       final message = event['message']?.toString() ?? 'Status de captura recebido.';
       if (!mounted) return;
       setState(() {
+        if (message.toLowerCase().contains('captura real iniciada') ||
+            message.toLowerCase().contains('enviando frames')) {
+          _mirroring = true;
+        }
+        if (message.toLowerCase().contains('falha') ||
+            message.toLowerCase().contains('negada') ||
+            message.toLowerCase().contains('encerrada')) {
+          _mirroring = false;
+        }
         _status = message;
       });
       return;
@@ -328,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _socket?.add(jsonEncode({
       'type': 'mirror_frame',
       'role': 'phone',
-      'version': 'v0.3-r1',
+      'version': 'v0.3-r2',
       'width': event['width'],
       'height': event['height'],
       'frame': _frameCount,
@@ -516,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      'v0.3-r1 • espelhamento experimental real',
+                      'v0.3-r2 • espelhamento experimental real',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: colors.muted,

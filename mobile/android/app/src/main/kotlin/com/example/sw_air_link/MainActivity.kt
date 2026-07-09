@@ -11,6 +11,7 @@ import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -39,6 +40,7 @@ class MainActivity : FlutterActivity() {
     private var captureHeight = 0
     private var lastFrameMs = 0L
     private var stopping = false
+    private var frameCounter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +54,7 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "startCapture" -> startCapture(result)
                 "stopCapture" -> {
-                    stopCaptureInternal()
+                    stopCaptureInternal(stopServiceToo = true)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -62,6 +64,7 @@ class MainActivity : FlutterActivity() {
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, eventChannelName).setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
                 eventSink = events
+                sendStatus("Canal de frames pronto. Ao autorizar o Android, a captura será iniciada.")
             }
 
             override fun onCancel(arguments: Any?) {
@@ -73,20 +76,32 @@ class MainActivity : FlutterActivity() {
     private fun startCapture(result: MethodChannel.Result) {
         if (mediaProjection != null && virtualDisplay != null) {
             result.success("capturing")
+            sendStatus("Captura já está ativa. Enviando frames para o navegador.")
             return
         }
+
+        if (pendingResult != null) {
+            result.success("permission_requested")
+            sendStatus("Permissão de captura já foi solicitada. Responda ao aviso do Android.")
+            return
+        }
+
         pendingResult = result
+        sendStatus("Solicitando permissão real de captura do Android...")
+
         try {
             val intent = projectionManager?.createScreenCaptureIntent()
             if (intent == null) {
                 pendingResult?.error("NO_MANAGER", "MediaProjectionManager indisponível", null)
                 pendingResult = null
+                sendStatus("Falha: MediaProjectionManager indisponível neste dispositivo.")
                 return
             }
             startActivityForResult(intent, requestCaptureCode)
         } catch (error: Throwable) {
-            pendingResult?.error("CAPTURE_START_ERROR", error.message, null)
+            pendingResult?.error("CAPTURE_START_ERROR", error.message ?: "erro desconhecido", null)
             pendingResult = null
+            sendStatus("Falha ao abrir permissão de captura: ${error.message ?: "erro desconhecido"}")
         }
     }
 
@@ -96,48 +111,63 @@ class MainActivity : FlutterActivity() {
         if (requestCode != requestCaptureCode) return
 
         if (resultCode != Activity.RESULT_OK || data == null) {
-            pendingResult?.error("PERMISSION_DENIED", "Permissão de captura negada", null)
+            pendingResult?.success("permission_denied")
             pendingResult = null
-            sendStatus("Permissão de captura negada pelo Android.")
+            sendStatus("Permissão de captura cancelada ou negada pelo Android.")
             return
         }
 
         try {
+            sendStatus("Permissão aceita. Preparando serviço de captura...")
+            startProjectionService()
             mediaProjection = projectionManager?.getMediaProjection(resultCode, data)
-            setupCapture()
-            pendingResult?.success("capturing")
+            pendingResult?.success("permission_granted")
             pendingResult = null
+            setupCapture()
             sendStatus("Captura real iniciada. Enviando frames para o navegador.")
         } catch (error: Throwable) {
-            pendingResult?.error("CAPTURE_ERROR", error.message, null)
+            pendingResult?.success("permission_granted")
             pendingResult = null
-            sendStatus("Falha ao iniciar captura: ${error.message ?: "erro desconhecido"}")
-            stopCaptureInternal()
+            sendStatus("Falha ao iniciar captura após permissão: ${error.message ?: error.javaClass.simpleName}")
+            stopCaptureInternal(stopServiceToo = true)
+        }
+    }
+
+    private fun startProjectionService() {
+        val serviceIntent = Intent(this, MirrorProjectionService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
         }
     }
 
     private fun setupCapture() {
         val projection = mediaProjection ?: throw IllegalStateException("MediaProjection ausente")
         stopping = false
+        frameCounter = 0
 
         captureThread = HandlerThread("SWAirLinkCaptureThread").also { it.start() }
         captureHandler = Handler(captureThread!!.looper)
 
         val metrics = resources.displayMetrics
-        captureWidth = metrics.widthPixels
-        captureHeight = metrics.heightPixels
+        val sourceWidth = metrics.widthPixels.coerceAtLeast(1)
+        val sourceHeight = metrics.heightPixels.coerceAtLeast(1)
         val density = metrics.densityDpi
+
+        captureWidth = min(540, sourceWidth)
+        captureHeight = (sourceHeight * (captureWidth.toFloat() / sourceWidth.toFloat())).toInt().coerceAtLeast(1)
 
         projection.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
                 if (!stopping) {
-                    stopCaptureInternal()
+                    stopCaptureInternal(stopServiceToo = true)
                     sendStatus("Captura encerrada pelo sistema Android.")
                 }
             }
         }, captureHandler)
 
-        imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
+        imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 3)
         imageReader?.setOnImageAvailableListener({ reader ->
             captureHandler?.post { processImage(reader) }
         }, captureHandler)
@@ -152,17 +182,23 @@ class MainActivity : FlutterActivity() {
             null,
             captureHandler
         )
+
+        if (virtualDisplay == null) {
+            throw IllegalStateException("VirtualDisplay não foi criado")
+        }
     }
 
     private fun processImage(reader: ImageReader) {
         val now = System.currentTimeMillis()
-        if (now - lastFrameMs < 320) {
-            reader.acquireLatestImage()?.close()
+        val maybeImage = try { reader.acquireLatestImage() } catch (_: Throwable) { null } ?: return
+
+        if (now - lastFrameMs < 360) {
+            maybeImage.close()
             return
         }
         lastFrameMs = now
 
-        val image: Image = reader.acquireLatestImage() ?: return
+        val image: Image = maybeImage
         try {
             val plane = image.planes.firstOrNull() ?: return
             val buffer = plane.buffer
@@ -177,28 +213,25 @@ class MainActivity : FlutterActivity() {
             val cropped = Bitmap.createBitmap(rawBitmap, 0, 0, captureWidth, captureHeight)
             rawBitmap.recycle()
 
-            val targetWidth = min(540, captureWidth)
-            val targetHeight = (captureHeight * (targetWidth.toFloat() / captureWidth)).toInt().coerceAtLeast(1)
-            val scaled = Bitmap.createScaledBitmap(cropped, targetWidth, targetHeight, true)
+            val output = ByteArrayOutputStream()
+            cropped.compress(Bitmap.CompressFormat.JPEG, 45, output)
             cropped.recycle()
 
-            val output = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, 42, output)
-            scaled.recycle()
-
+            frameCounter += 1
             val base64 = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
             runOnUiThread {
                 eventSink?.success(
                     mapOf(
                         "type" to "frame",
                         "image" to base64,
-                        "width" to targetWidth,
-                        "height" to targetHeight
+                        "width" to captureWidth,
+                        "height" to captureHeight,
+                        "nativeFrame" to frameCounter
                     )
                 )
             }
         } catch (error: Throwable) {
-            sendStatus("Falha ao processar frame: ${error.message ?: "erro desconhecido"}")
+            sendStatus("Falha ao processar frame: ${error.message ?: error.javaClass.simpleName}")
         } finally {
             image.close()
         }
@@ -210,7 +243,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun stopCaptureInternal() {
+    private fun stopCaptureInternal(stopServiceToo: Boolean) {
         stopping = true
         try { virtualDisplay?.release() } catch (_: Throwable) {}
         try { imageReader?.close() } catch (_: Throwable) {}
@@ -222,10 +255,14 @@ class MainActivity : FlutterActivity() {
         captureThread = null
         captureHandler = null
         lastFrameMs = 0L
+        frameCounter = 0
+        if (stopServiceToo) {
+            try { stopService(Intent(this, MirrorProjectionService::class.java)) } catch (_: Throwable) {}
+        }
     }
 
     override fun onDestroy() {
-        stopCaptureInternal()
+        stopCaptureInternal(stopServiceToo = true)
         super.onDestroy()
     }
 }

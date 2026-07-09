@@ -33,7 +33,14 @@ function localAddresses() {
       if (net.family === 'IPv4' && !net.internal) list.push(net.address);
     }
   }
-  return list;
+  try {
+    const { execSync } = require('child_process');
+    const output = execSync('ip route get 1.1.1.1 2>/dev/null || true', { encoding: 'utf8' });
+    const match = output.match(/src\s+(\d+\.\d+\.\d+\.\d+)/);
+    if (match) list.push(match[1]);
+  } catch (_) {}
+  if (list.length === 0) list.push('127.0.0.1');
+  return [...new Set(list)];
 }
 
 const server = http.createServer((req, res) => {
