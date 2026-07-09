@@ -1,8 +1,10 @@
 name: Build Flutter Android APK
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     name: Build Flutter Android APK
@@ -10,38 +12,52 @@ jobs:
     defaults:
       run:
         working-directory: mobile
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - uses: subosito/flutter-action@v2
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Prepare Flutter Android project
         run: |
           flutter --version
           flutter create --platforms=android --project-name sw_air_link .
-          if [ -f app_templates/pubspec.yaml ]; then cp app_templates/pubspec.yaml pubspec.yaml; fi
-          if [ -f app_templates/main.dart ]; then cp app_templates/main.dart lib/main.dart; fi
-          if [ -f app_templates/widget_test.dart ]; then mkdir -p test; cp app_templates/widget_test.dart test/widget_test.dart; fi
+          cp app_templates/pubspec.yaml pubspec.yaml
+          cp app_templates/main.dart lib/main.dart
+          mkdir -p test
+          cp app_templates/widget_test.dart test/widget_test.dart
           cp -R native_templates/android/* android/
           flutter pub get
+
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
+
       - name: Test Flutter project
         run: flutter test
+
       - name: Build debug APK
         run: flutter build apk --debug
+
       - name: Prepare APK artifact
         run: |
           mkdir -p ../dist
-          cp build/app/outputs/flutter-apk/app-debug.apk ../dist/SW-Air-Link-v0.3-r6-debug.apk
+          cp build/app/outputs/flutter-apk/app-debug.apk "../dist/SW-Air-Link-v0.3-r7-debug.apk"
           ls -lh ../dist
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.3-r6-debug
-          path: dist/SW-Air-Link-v0.3-r6-debug.apk
+          name: SW-Air-Link-v0.3-r7-debug
+          path: dist/SW-Air-Link-v0.3-r7-debug.apk
           if-no-files-found: error
