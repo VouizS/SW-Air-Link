@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const PORT = Number(process.env.PORT || 8080);
+const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
 const rooms = new Map();
 
@@ -10,9 +10,8 @@ function send(ws, data) {
   }
 }
 
-function getRoom(code) {
-  if (!rooms.has(code)) rooms.set(code, new Set());
-  return rooms.get(code);
+function safeRoomCode(value) {
+  return String(value || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 32);
 }
 
 wss.on('connection', (ws) => {
@@ -20,38 +19,46 @@ wss.on('connection', (ws) => {
   ws.role = 'unknown';
 
   ws.on('message', (raw) => {
-    let msg;
+    let message;
+
     try {
-      msg = JSON.parse(raw.toString());
+      message = JSON.parse(raw.toString());
     } catch {
       send(ws, { type: 'error', message: 'Mensagem inválida.' });
       return;
     }
 
-    if (msg.type === 'join') {
-      const roomCode = String(msg.roomCode || '').trim();
-      const role = String(msg.role || 'unknown').trim();
+    if (message.type === 'join') {
+      const roomCode = safeRoomCode(message.roomCode);
+      const role = String(message.role || 'unknown').slice(0, 32);
 
       if (!roomCode) {
         send(ws, { type: 'error', message: 'Código da sala ausente.' });
         return;
       }
 
+      if (!rooms.has(roomCode)) {
+        rooms.set(roomCode, new Set());
+      }
+
       ws.roomCode = roomCode;
       ws.role = role;
-      const room = getRoom(roomCode);
-      room.add(ws);
+      rooms.get(roomCode).add(ws);
 
-      send(ws, { type: 'joined', roomCode, role, peers: room.size - 1 });
+      send(ws, { type: 'joined', roomCode, role });
 
-      for (const client of room) {
-        if (client !== ws) send(client, { type: 'peer_joined', role });
+      for (const client of rooms.get(roomCode)) {
+        if (client !== ws) {
+          send(client, { type: 'peer_joined', role });
+        }
       }
+
       return;
     }
 
-    if (msg.type === 'signal') {
+    if (message.type === 'signal') {
       const room = rooms.get(ws.roomCode);
+
       if (!room) {
         send(ws, { type: 'error', message: 'Sala não encontrada.' });
         return;
@@ -59,9 +66,14 @@ wss.on('connection', (ws) => {
 
       for (const client of room) {
         if (client !== ws) {
-          send(client, { type: 'signal', from: ws.role, payload: msg.payload || null });
+          send(client, {
+            type: 'signal',
+            from: ws.role,
+            payload: message.payload,
+          });
         }
       }
+
       return;
     }
 
@@ -70,11 +82,20 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     const room = rooms.get(ws.roomCode);
-    if (!room) return;
+
+    if (!room) {
+      return;
+    }
 
     room.delete(ws);
-    for (const client of room) send(client, { type: 'peer_left', role: ws.role });
-    if (room.size === 0) rooms.delete(ws.roomCode);
+
+    for (const client of room) {
+      send(client, { type: 'peer_left', role: ws.role });
+    }
+
+    if (room.size === 0) {
+      rooms.delete(ws.roomCode);
+    }
   });
 });
 

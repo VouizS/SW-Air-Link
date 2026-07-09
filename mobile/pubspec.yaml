@@ -1,7 +1,7 @@
 name: sw_air_link
-description: SW Air Link mobile bridge app.
+description: "SW Air Link: conexão simples entre Android e navegador."
 publish_to: 'none'
-version: 0.1.4+4
+version: 0.1.5+5
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

@@ -1,32 +1,27 @@
 # Roadmap — SW Air Link
 
-## v0.1-r4 — Foundation Build Fix
-
-- Corrigir salvamento de logs na raiz do Download.
-- Montar app Flutter mínimo compilável.
-- Preparar workflow Android no GitHub Actions.
-- Preparar web base.
-- Preparar server base.
+## v0.1-r5 — Foundation Build Fix
+- Corrigir erro do Flutter Analyze causado por teste padrão chamando `MyApp` sem classe correspondente.
+- Manter app Android simples.
+- Gerar APK debug real pelo GitHub Actions.
+- Salvar logs de erro na raiz do Download e também na pasta `SW-Air-Link/Logs`.
 
 ## v0.2 — Pairing Prototype
-
-- Navegador gera código de sessão.
-- App Android digita/lê código.
-- Servidor marca navegador e celular como conectados.
+- Navegador gera código de sala.
+- App Android digita código.
+- Servidor registra presença do navegador e do telefone.
 
 ## v0.3 — File Transfer
-
-- Enviar arquivo do celular para navegador.
-- Enviar arquivo do navegador para celular.
+- Enviar arquivos do celular para navegador.
+- Enviar arquivos do navegador para celular.
 
 ## v0.4 — Screen Mirror Experimental
+- MediaProjection no Android.
+- Captura de tela real, com confirmação do sistema.
+- Transmissão para navegador.
 
-- Usar MediaProjection no Android.
-- Transmitir tela para navegador.
-- Botão iniciar/parar espelhamento.
-
-## v0.5 — Remote Control Experimental
-
-- Somente se houver implementação real e transparente.
-- Exigir permissão explícita.
-- Não ativar controle escondido.
+## Regras
+- Sem espelhamento falso.
+- Sem controle remoto falso.
+- Interface simples no app.
+- Navegador como tela principal.

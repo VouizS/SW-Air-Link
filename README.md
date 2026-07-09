@@ -1,30 +1,23 @@
 # SW Air Link
 
-SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo.
-
-O objetivo é criar uma ferramenta simples e acessível para:
-
-- parear telefone e navegador por código/QR;
-- espelhar a tela do Android no navegador em versões futuras;
-- transferir arquivos entre telefone e navegador;
-- ajudar em cenários onde a tela do telefone está ruim, quebrada ou difícil de usar.
+SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo, com foco em espelhamento de tela, transferência de arquivos e pareamento simples por código/QR.
 
 ## Filosofia
 
-O aplicativo móvel deve ser simples. Ele funciona como uma ponte.
-O navegador é o painel principal.
+- O app Android deve ser simples.
+- O navegador é o painel principal.
+- Não fingir função que ainda não existe.
+- Não pedir permissões sem necessidade.
+- Priorizar modo local/grátis antes de recursos premium/remotos.
 
-## Estado atual
+## Estrutura
 
-v0.1-r4 — base real do projeto:
+- `mobile/` — app Flutter Android
+- `web/` — painel web/PWA
+- `server/` — servidor de pareamento
+- `docs/` — documentação técnica
+- `.github/workflows/` — build automático do APK
 
-- app Flutter mínimo;
-- página web inicial;
-- servidor WebSocket básico para pareamento futuro;
-- workflow de build Android no GitHub Actions;
-- comando Termux `airful` para push, build, download de APK/log e upload via rclone.
+## Status
 
-## Regra importante
-
-Não fingir espelhamento, controle remoto, conexão ou transferência.
-Função só aparece como funcional quando existir implementação real.
+v0.1-r5 — base Flutter simples com build Android via GitHub Actions.

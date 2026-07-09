@@ -1,13 +1,21 @@
-name: Android Build
+name: Build Flutter Android APK
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-build.yml'
+      - 'README.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  build-android:
     name: Build Flutter Android APK
     runs-on: ubuntu-latest
 
@@ -32,6 +40,22 @@ jobs:
         run: |
           flutter --version
           flutter create --platforms=android --project-name sw_air_link .
+          mkdir -p test
+          cat > test/widget_test.dart <<'EOF'
+          import 'package:flutter/material.dart';
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:sw_air_link/main.dart';
+
+          void main() {
+            testWidgets('SW Air Link home renders', (WidgetTester tester) async {
+              await tester.pumpWidget(const MyApp());
+
+              expect(find.text('SW Air Link'), findsOneWidget);
+              expect(find.textContaining('base real'), findsOneWidget);
+              expect(find.byIcon(Icons.cast_connected), findsOneWidget);
+            });
+          }
+          EOF
           flutter pub get
 
       - name: Analyze Flutter project
@@ -40,16 +64,14 @@ jobs:
 
       - name: Build debug APK
         working-directory: mobile
-        run: flutter build apk --debug
-
-      - name: Collect APK
         run: |
-          mkdir -p artifacts
-          cp mobile/build/app/outputs/flutter-apk/app-debug.apk artifacts/SW-Air-Link-v0.1-r4-debug.apk
+          flutter build apk --debug --build-name=0.1.5 --build-number=5
+          mkdir -p out
+          cp build/app/outputs/flutter-apk/app-debug.apk out/SW-Air-Link-v0.1-r5-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.1-r4-debug-apk
-          path: artifacts/*.apk
+          name: SW-Air-Link-v0.1-r5-debug-apk
+          path: mobile/out/*.apk
           if-no-files-found: error
