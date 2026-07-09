@@ -1,39 +1,38 @@
-name: SW Air Link Android Build
+name: Android Build
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build-android:
+  build:
+    name: Build Flutter Android APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Flutter version
-        run: flutter --version
-
-      - name: Ensure Android project exists
+      - name: Prepare Flutter project
         working-directory: mobile
         run: |
-          flutter create --platforms=android --project-name=sw_air_link --org=com.swairlink .
-
-      - name: Install dependencies
-        working-directory: mobile
-        run: flutter pub get
+          flutter --version
+          flutter create --platforms=android --project-name sw_air_link .
+          flutter pub get
 
       - name: Analyze Flutter project
         working-directory: mobile
@@ -41,18 +40,16 @@ jobs:
 
       - name: Build debug APK
         working-directory: mobile
-        run: flutter build apk --debug --build-name=0.1.1 --build-number=${{ github.run_number }}
+        run: flutter build apk --debug
 
-      - name: Prepare artifact
+      - name: Collect APK
         run: |
-          mkdir -p out
-          SHORT_SHA="${GITHUB_SHA:0:7}"
-          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "out/SW-Air-Link-v0.1-r2-run-${GITHUB_RUN_NUMBER}-${SHORT_SHA}-debug.apk"
-          ls -lah out
+          mkdir -p artifacts
+          cp mobile/build/app/outputs/flutter-apk/app-debug.apk artifacts/SW-Air-Link-v0.1-r4-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.1-r2-APK
-          path: out/*.apk
+          name: SW-Air-Link-v0.1-r4-debug-apk
+          path: artifacts/*.apk
           if-no-files-found: error

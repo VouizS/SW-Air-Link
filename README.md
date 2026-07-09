@@ -1,31 +1,30 @@
 # SW Air Link
 
-SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo, permitindo espelhamento de tela, transferência de arquivos e pareamento por QR Code/código.
+SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo.
 
-## Direção do produto
+O objetivo é criar uma ferramenta simples e acessível para:
 
-A primeira versão deve ser simples. O app Android funciona como ponte, enquanto o navegador é o painel principal.
+- parear telefone e navegador por código/QR;
+- espelhar a tela do Android no navegador em versões futuras;
+- transferir arquivos entre telefone e navegador;
+- ajudar em cenários onde a tela do telefone está ruim, quebrada ou difícil de usar.
 
-## Objetivo
+## Filosofia
 
-Criar uma alternativa acessível e transparente para espelhar a tela do telefone no navegador, útil especialmente quando o celular ainda funciona, mas a tela está danificada, com toque ruim ou difícil de usar.
+O aplicativo móvel deve ser simples. Ele funciona como uma ponte.
+O navegador é o painel principal.
 
-## Estrutura
+## Estado atual
 
-- `mobile/` — aplicativo Flutter Android
-- `web/` — painel web/PWA para navegador
-- `server/` — servidor de pareamento por WebSocket
-- `docs/` — documentação técnica
-- `.github/workflows/` — build automático do APK
+v0.1-r4 — base real do projeto:
 
-## Status
+- app Flutter mínimo;
+- página web inicial;
+- servidor WebSocket básico para pareamento futuro;
+- workflow de build Android no GitHub Actions;
+- comando Termux `airful` para push, build, download de APK/log e upload via rclone.
 
-v0.1-r2 — Project Foundation + Termux safe directory fix.
+## Regra importante
 
-## Regras
-
-- Não fingir espelhamento.
-- Não mostrar controle remoto se ele ainda não existir.
-- Não pedir permissões desnecessárias.
-- Priorizar app simples e navegador funcional.
-- Ser transparente com o usuário.
+Não fingir espelhamento, controle remoto, conexão ou transferência.
+Função só aparece como funcional quando existir implementação real.

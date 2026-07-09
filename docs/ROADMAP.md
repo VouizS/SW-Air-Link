@@ -1,43 +1,32 @@
 # Roadmap — SW Air Link
 
-## v0.1-r2 — Project Foundation Fix
+## v0.1-r4 — Foundation Build Fix
 
-- Criar estrutura do repositório.
-- Criar app Flutter base.
-- Criar painel web base.
-- Criar servidor base.
-- Preparar GitHub Actions.
-- Corrigir fluxo Termux/Git safe.directory.
-- Preparar upload de APK/logs via rclone.
+- Corrigir salvamento de logs na raiz do Download.
+- Montar app Flutter mínimo compilável.
+- Preparar workflow Android no GitHub Actions.
+- Preparar web base.
+- Preparar server base.
 
-## v0.2-r1 — Pairing Prototype
+## v0.2 — Pairing Prototype
 
-- Gerar sala/código no navegador.
-- Conectar app Android por código.
-- Mostrar status conectado/desconectado.
+- Navegador gera código de sessão.
+- App Android digita/lê código.
+- Servidor marca navegador e celular como conectados.
 
-## v0.3-r1 — File Transfer
+## v0.3 — File Transfer
 
 - Enviar arquivo do celular para navegador.
 - Enviar arquivo do navegador para celular.
 
-## v0.4-r1 — Screen Mirror Experimental
+## v0.4 — Screen Mirror Experimental
 
-- Implementar MediaProjection no Android.
+- Usar MediaProjection no Android.
 - Transmitir tela para navegador.
-- Adicionar botão iniciar/parar espelhamento.
+- Botão iniciar/parar espelhamento.
 
-## v0.5-r1 — Rescue Mode
+## v0.5 — Remote Control Experimental
 
-- Modo simples para celular com tela danificada.
-- Botões grandes.
-- Alto contraste.
-- Reconexão rápida.
-
-## Fora da primeira versão
-
-- Login.
-- Pagamento.
-- Controle remoto.
-- Painel pesado.
-- Permissões invasivas.
+- Somente se houver implementação real e transparente.
+- Exigir permissão explícita.
+- Não ativar controle escondido.

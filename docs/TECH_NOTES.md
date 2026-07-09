@@ -1,23 +1,24 @@
-# Notas técnicas — SW Air Link
+# Notas técnicas
 
-## Filosofia
+## App
 
-O aplicativo Android deve ser simples. Ele existe para conectar, pedir permissões necessárias e enviar dados ao navegador.
+Flutter será usado para a interface simples do Android.
+A captura real da tela, quando implementada, precisará de camada nativa Android com MediaProjection.
 
-O navegador é o painel principal, onde a pessoa vê a tela, baixa arquivos e usa recursos futuros.
+## Web
 
-## Camadas planejadas
+O navegador será o painel principal do produto.
 
-1. Flutter/Dart para app Android.
-2. Ponte nativa Android/Kotlin para MediaProjection futuramente.
-3. Web/PWA para painel no navegador.
-4. Servidor WebSocket para pareamento e sinalização.
-5. WebRTC futuramente para vídeo/espelhamento.
+## Server
 
-## Drive de artefatos
+O servidor inicial é apenas uma base WebSocket para pareamento e sinalização futura.
 
-A automação local tenta enviar APKs e logs via rclone para o Drive configurado no Termux. Conta indicada para o projeto: vlacostens@gmail.com.
+## Logs
 
-## Atenção
+O comando `airful` deve salvar logs de erro diretamente em:
 
-Esta versão ainda não espelha tela. Ela cria a fundação real para próximas versões.
+/storage/emulated/0/Download/
+
+com nome parecido com:
+
+SW-Air-Link_BUILD_ERROR_<run_id>_<data>.txt

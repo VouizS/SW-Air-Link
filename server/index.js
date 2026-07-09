@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT || 8080);
 const wss = new WebSocket.Server({ port: PORT });
 const rooms = new Map();
 
@@ -10,13 +10,9 @@ function send(ws, data) {
   }
 }
 
-function broadcast(roomCode, sender, data) {
-  const room = rooms.get(roomCode);
-  if (!room) return;
-
-  for (const client of room) {
-    if (client !== sender) send(client, data);
-  }
+function getRoom(code) {
+  if (!rooms.has(code)) rooms.set(code, new Set());
+  return rooms.get(code);
 }
 
 wss.on('connection', (ws) => {
@@ -24,46 +20,48 @@ wss.on('connection', (ws) => {
   ws.role = 'unknown';
 
   ws.on('message', (raw) => {
-    let message;
-
+    let msg;
     try {
-      message = JSON.parse(raw.toString());
+      msg = JSON.parse(raw.toString());
     } catch {
       send(ws, { type: 'error', message: 'Mensagem inválida.' });
       return;
     }
 
-    if (message.type === 'join') {
-      const roomCode = String(message.roomCode || '').trim();
-      const role = String(message.role || 'unknown').trim();
+    if (msg.type === 'join') {
+      const roomCode = String(msg.roomCode || '').trim();
+      const role = String(msg.role || 'unknown').trim();
 
       if (!roomCode) {
         send(ws, { type: 'error', message: 'Código da sala ausente.' });
         return;
       }
 
-      if (!rooms.has(roomCode)) rooms.set(roomCode, new Set());
-
       ws.roomCode = roomCode;
       ws.role = role;
-      rooms.get(roomCode).add(ws);
+      const room = getRoom(roomCode);
+      room.add(ws);
 
-      send(ws, { type: 'joined', roomCode, role });
-      broadcast(roomCode, ws, { type: 'peer_joined', role });
+      send(ws, { type: 'joined', roomCode, role, peers: room.size - 1 });
+
+      for (const client of room) {
+        if (client !== ws) send(client, { type: 'peer_joined', role });
+      }
       return;
     }
 
-    if (message.type === 'signal') {
-      if (!ws.roomCode) {
-        send(ws, { type: 'error', message: 'Cliente ainda não entrou em uma sala.' });
+    if (msg.type === 'signal') {
+      const room = rooms.get(ws.roomCode);
+      if (!room) {
+        send(ws, { type: 'error', message: 'Sala não encontrada.' });
         return;
       }
 
-      broadcast(ws.roomCode, ws, {
-        type: 'signal',
-        from: ws.role,
-        payload: message.payload || null
-      });
+      for (const client of room) {
+        if (client !== ws) {
+          send(client, { type: 'signal', from: ws.role, payload: msg.payload || null });
+        }
+      }
       return;
     }
 
@@ -71,14 +69,11 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    if (!ws.roomCode) return;
-
     const room = rooms.get(ws.roomCode);
     if (!room) return;
 
     room.delete(ws);
-    broadcast(ws.roomCode, ws, { type: 'peer_left', role: ws.role });
-
+    for (const client of room) send(client, { type: 'peer_left', role: ws.role });
     if (room.size === 0) rooms.delete(ws.roomCode);
   });
 });
