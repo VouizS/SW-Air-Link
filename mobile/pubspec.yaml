@@ -1,7 +1,7 @@
 name: sw_air_link
-description: "SW Air Link: conexão simples entre Android e navegador."
+description: App simples para conectar o telefone ao navegador pelo SW Air Link.
 publish_to: 'none'
-version: 0.1.5+5
+version: 0.2.1+21
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:

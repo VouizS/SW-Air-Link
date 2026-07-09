@@ -1,102 +1,217 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const WebSocket = require('ws');
 
-const PORT = process.env.PORT || 8080;
-const wss = new WebSocket.Server({ port: PORT });
+const PORT = Number(process.env.PORT || 8080);
+const webDir = path.resolve(__dirname, '..', 'web');
 const rooms = new Map();
 
-function send(ws, data) {
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data));
+function json(res, status, payload) {
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function serveFile(req, res) {
+  if (req.url === '/health') {
+    json(res, 200, {
+      ok: true,
+      app: 'SW Air Link',
+      version: 'v0.2-r1',
+      rooms: rooms.size,
+    });
+    return;
   }
-}
 
-function safeRoomCode(value) {
-  return String(value || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 32);
-}
+  let requested = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (requested === '/') requested = '/index.html';
 
-wss.on('connection', (ws) => {
-  ws.roomCode = null;
-  ws.role = 'unknown';
+  const filePath = path.resolve(webDir, `.${requested}`);
+  if (!filePath.startsWith(webDir)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
 
-  ws.on('message', (raw) => {
-    let message;
-
-    try {
-      message = JSON.parse(raw.toString());
-    } catch {
-      send(ws, { type: 'error', message: 'Mensagem inválida.' });
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Arquivo não encontrado');
       return;
     }
 
-    if (message.type === 'join') {
-      const roomCode = safeRoomCode(message.roomCode);
-      const role = String(message.role || 'unknown').slice(0, 32);
+    const ext = path.extname(filePath).toLowerCase();
+    const type = ext === '.html'
+      ? 'text/html; charset=utf-8'
+      : ext === '.css'
+        ? 'text/css; charset=utf-8'
+        : ext === '.js'
+          ? 'application/javascript; charset=utf-8'
+          : 'application/octet-stream';
 
-      if (!roomCode) {
-        send(ws, { type: 'error', message: 'Código da sala ausente.' });
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    res.end(data);
+  });
+}
+
+const server = http.createServer(serveFile);
+const wss = new WebSocket.Server({ server });
+
+function send(ws, payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+function broadcast(roomCode, payload, except = null) {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+  for (const client of room.clients) {
+    if (client !== except) send(client, payload);
+  }
+}
+
+function makeCode() {
+  for (let i = 0; i < 30; i += 1) {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    if (!rooms.has(code)) return code;
+  }
+  return String(Date.now()).slice(-6);
+}
+
+function roomSummary(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room) return null;
+  return {
+    roomCode,
+    clients: room.clients.size,
+    hasWeb: Boolean(room.web),
+    hasMobile: Boolean(room.mobile),
+    createdAt: room.createdAt,
+  };
+}
+
+wss.on('connection', (ws, req) => {
+  ws.role = 'unknown';
+  ws.roomCode = null;
+
+  send(ws, {
+    type: 'hello',
+    app: 'SW Air Link',
+    version: 'v0.2-r1',
+    message: 'Servidor de pareamento conectado.',
+  });
+
+  ws.on('message', (raw) => {
+    let message;
+    try {
+      message = JSON.parse(raw.toString());
+    } catch (error) {
+      send(ws, { type: 'error', code: 'invalid_json', message: 'Mensagem inválida.' });
+      return;
+    }
+
+    if (message.type === 'create_room') {
+      const roomCode = makeCode();
+      const room = {
+        createdAt: new Date().toISOString(),
+        clients: new Set([ws]),
+        web: ws,
+        mobile: null,
+      };
+      rooms.set(roomCode, room);
+      ws.role = String(message.role || 'web');
+      ws.roomCode = roomCode;
+      send(ws, {
+        type: 'room_created',
+        roomCode,
+        summary: roomSummary(roomCode),
+      });
+      return;
+    }
+
+    if (message.type === 'join_room') {
+      const roomCode = String(message.roomCode || '').trim();
+      if (!roomCode || !rooms.has(roomCode)) {
+        send(ws, {
+          type: 'error',
+          code: 'room_not_found',
+          message: 'Código não encontrado ou expirado.',
+        });
         return;
       }
 
-      if (!rooms.has(roomCode)) {
-        rooms.set(roomCode, new Set());
-      }
-
+      const room = rooms.get(roomCode);
+      room.clients.add(ws);
+      ws.role = String(message.role || 'mobile');
       ws.roomCode = roomCode;
-      ws.role = role;
-      rooms.get(roomCode).add(ws);
 
-      send(ws, { type: 'joined', roomCode, role });
+      if (ws.role === 'mobile') room.mobile = ws;
+      if (ws.role === 'web') room.web = ws;
 
-      for (const client of rooms.get(roomCode)) {
-        if (client !== ws) {
-          send(client, { type: 'peer_joined', role });
-        }
-      }
+      send(ws, {
+        type: 'joined',
+        roomCode,
+        role: ws.role,
+        summary: roomSummary(roomCode),
+      });
 
+      broadcast(roomCode, {
+        type: 'peer_joined',
+        role: ws.role,
+        deviceName: message.deviceName || 'Dispositivo',
+        summary: roomSummary(roomCode),
+      }, ws);
       return;
     }
 
     if (message.type === 'signal') {
-      const room = rooms.get(ws.roomCode);
-
-      if (!room) {
-        send(ws, { type: 'error', message: 'Sala não encontrada.' });
+      if (!ws.roomCode) {
+        send(ws, { type: 'error', code: 'not_in_room', message: 'Entre em uma sala primeiro.' });
         return;
       }
-
-      for (const client of room) {
-        if (client !== ws) {
-          send(client, {
-            type: 'signal',
-            from: ws.role,
-            payload: message.payload,
-          });
-        }
-      }
-
+      broadcast(ws.roomCode, {
+        type: 'signal',
+        from: ws.role,
+        payload: message.payload || null,
+      }, ws);
       return;
     }
 
-    send(ws, { type: 'error', message: 'Tipo de mensagem desconhecido.' });
+    if (message.type === 'ping') {
+      send(ws, { type: 'pong', now: new Date().toISOString() });
+      return;
+    }
+
+    send(ws, { type: 'error', code: 'unknown_type', message: 'Tipo de mensagem desconhecido.' });
   });
 
   ws.on('close', () => {
-    const room = rooms.get(ws.roomCode);
+    const roomCode = ws.roomCode;
+    if (!roomCode || !rooms.has(roomCode)) return;
 
-    if (!room) {
-      return;
-    }
+    const room = rooms.get(roomCode);
+    room.clients.delete(ws);
+    if (room.web === ws) room.web = null;
+    if (room.mobile === ws) room.mobile = null;
 
-    room.delete(ws);
+    broadcast(roomCode, {
+      type: 'peer_left',
+      role: ws.role,
+      summary: roomSummary(roomCode),
+    });
 
-    for (const client of room) {
-      send(client, { type: 'peer_left', role: ws.role });
-    }
-
-    if (room.size === 0) {
-      rooms.delete(ws.roomCode);
+    if (room.clients.size === 0) {
+      rooms.delete(roomCode);
     }
   });
 });
 
-console.log(`SW Air Link server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log('SW Air Link server v0.2-r1');
+  console.log(`HTTP/WebSocket port: ${PORT}`);
+  console.log('Abra o endereço do seu IP local no navegador.');
+});

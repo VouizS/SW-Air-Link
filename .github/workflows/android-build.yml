@@ -5,14 +5,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/android-build.yml'
-      - 'README.md'
-      - 'docs/**'
-
-permissions:
-  contents: read
 
 jobs:
   build-android:
@@ -35,43 +27,46 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Prepare Flutter project
+      - name: Prepare Flutter Android project
         working-directory: mobile
         run: |
           flutter --version
           flutter create --platforms=android --project-name sw_air_link .
-          mkdir -p test
-          cat > test/widget_test.dart <<'EOF'
-          import 'package:flutter/material.dart';
-          import 'package:flutter_test/flutter_test.dart';
-          import 'package:sw_air_link/main.dart';
-
-          void main() {
-            testWidgets('SW Air Link home renders', (WidgetTester tester) async {
-              await tester.pumpWidget(const MyApp());
-
-              expect(find.text('SW Air Link'), findsOneWidget);
-              expect(find.textContaining('base real'), findsOneWidget);
-              expect(find.byIcon(Icons.cast_connected), findsOneWidget);
-            });
-          }
-          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          perm1 = '<uses-permission android:name="android.permission.INTERNET" />'
+          perm2 = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if perm1 not in text and perm2 not in text:
+              text = text.replace('<application', f'{perm1}\n    <application', 1)
+          if 'android:usesCleartextTraffic' not in text:
+              text = text.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          manifest.write_text(text)
+          PY
           flutter pub get
 
       - name: Analyze Flutter project
         working-directory: mobile
         run: flutter analyze
 
+      - name: Test Flutter project
+        working-directory: mobile
+        run: flutter test
+
       - name: Build debug APK
         working-directory: mobile
+        run: flutter build apk --debug
+
+      - name: Prepare APK artifact
         run: |
-          flutter build apk --debug --build-name=0.1.5 --build-number=5
-          mkdir -p out
-          cp build/app/outputs/flutter-apk/app-debug.apk out/SW-Air-Link-v0.1-r5-debug.apk
+          mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "dist/SW-Air-Link-v0.2-r1-debug.apk"
+          ls -lh dist
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.1-r5-debug-apk
-          path: mobile/out/*.apk
+          name: SW-Air-Link-v0.2-r1-debug
+          path: dist/SW-Air-Link-v0.2-r1-debug.apk
           if-no-files-found: error

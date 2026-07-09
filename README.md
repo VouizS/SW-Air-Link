@@ -1,23 +1,48 @@
 # SW Air Link
 
-SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo, com foco em espelhamento de tela, transferência de arquivos e pareamento simples por código/QR.
+SW Air Link é um projeto experimental para conectar um celular Android ao navegador de outro dispositivo.
 
-## Filosofia
+A ideia central é simples: o app no telefone funciona como ponte, enquanto o navegador vira a tela principal para pareamento, arquivos e, nas próximas versões, espelhamento real.
 
-- O app Android deve ser simples.
-- O navegador é o painel principal.
-- Não fingir função que ainda não existe.
-- Não pedir permissões sem necessidade.
-- Priorizar modo local/grátis antes de recursos premium/remotos.
+## Status atual
+
+**v0.2-r1 — Pairing Real**
+
+Esta versão inicia o pareamento real entre app, servidor local e navegador:
+
+- servidor Node.js com salas temporárias;
+- navegador gera código de conexão;
+- app Flutter digita o código;
+- app e navegador recebem status conectado/desconectado;
+- sem espelhamento falso;
+- sem controle remoto falso.
 
 ## Estrutura
 
-- `mobile/` — app Flutter Android
-- `web/` — painel web/PWA
-- `server/` — servidor de pareamento
-- `docs/` — documentação técnica
-- `.github/workflows/` — build automático do APK
+- `mobile/` — aplicativo Flutter Android;
+- `web/` — painel do navegador;
+- `server/` — servidor local de pareamento;
+- `docs/` — documentação técnica;
+- `.github/workflows/` — build automático do APK.
 
-## Status
+## Como testar o pareamento local
 
-v0.1-r5 — base Flutter simples com build Android via GitHub Actions.
+No Termux, dentro do projeto ou usando o comando instalado:
+
+```bash
+airful server
+```
+
+Depois abra o endereço mostrado no Chromebook, PC ou outro celular.
+
+O app Android usa o endereço WebSocket do servidor, por exemplo:
+
+```text
+ws://192.168.0.10:8080
+```
+
+O navegador cria o código, e o app entra nele.
+
+## Regra do projeto
+
+Este projeto não deve fingir funcionalidades. Espelhamento, controle e transferência só devem aparecer como funcionais quando existirem de verdade.

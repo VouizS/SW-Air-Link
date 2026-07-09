@@ -1,0 +1,30 @@
+# SW Air Link generated/local files
+APKs/
+Logs/
+Artifacts/
+*.apk
+*.aab
+
+# Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/build/
+mobile/ios/
+mobile/linux/
+mobile/macos/
+mobile/windows/
+mobile/web/
+
+# Node
+server/node_modules/
+server/package-lock.json
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
