@@ -168,7 +168,7 @@ class _PairingPageState extends State<PairingPage> {
                   border: Border.all(color: const Color(0xFFE3E6EF)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: const Color(0x0A000000),
                       blurRadius: 24,
                       offset: const Offset(0, 12),
                     ),
@@ -271,7 +271,7 @@ class _PairingPageState extends State<PairingPage> {
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'v0.2-r1 • pareamento real inicial, sem espelhamento falso',
+                      'v0.2-r2 • pareamento real inicial, sem espelhamento falso',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Color(0xFF9AA3B4),

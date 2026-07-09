@@ -6,7 +6,7 @@
 - Interface simples, clara e sem excesso.
 - Sem espelhamento falso.
 
-## v0.2-r1 — Pairing Real
+## v0.2-r2 — Pairing Real
 
 - Servidor local de pareamento em Node.js.
 - Web cria código real de sala.

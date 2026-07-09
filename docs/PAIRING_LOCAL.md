@@ -1,6 +1,6 @@
 # Pareamento local
 
-A v0.2-r1 usa um servidor local para aproximar o app Android e o navegador.
+A v0.2-r2 usa um servidor local para aproximar o app Android e o navegador.
 
 ## Fluxo
 

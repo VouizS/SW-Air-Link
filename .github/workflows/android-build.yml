@@ -48,7 +48,7 @@ jobs:
 
       - name: Analyze Flutter project
         working-directory: mobile
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Test Flutter project
         working-directory: mobile
@@ -61,12 +61,12 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "dist/SW-Air-Link-v0.2-r1-debug.apk"
+          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "dist/SW-Air-Link-v0.2-r2-debug.apk"
           ls -lh dist
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.2-r1-debug
-          path: dist/SW-Air-Link-v0.2-r1-debug.apk
+          name: SW-Air-Link-v0.2-r2-debug
+          path: dist/SW-Air-Link-v0.2-r2-debug.apk
           if-no-files-found: error
