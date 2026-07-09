@@ -38,10 +38,10 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p ../dist
-          cp build/app/outputs/flutter-apk/app-debug.apk ../dist/SW-Air-Link-v0.3-r5-debug.apk
+          cp build/app/outputs/flutter-apk/app-debug.apk ../dist/SW-Air-Link-v0.3-r6-debug.apk
           ls -lh ../dist
       - uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.3-r5-debug
-          path: dist/SW-Air-Link-v0.3-r5-debug.apk
+          name: SW-Air-Link-v0.3-r6-debug
+          path: dist/SW-Air-Link-v0.3-r6-debug.apk
           if-no-files-found: error
