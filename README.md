@@ -6,7 +6,7 @@ A ideia central é simples: o app no telefone funciona como ponte, enquanto o na
 
 ## Status atual
 
-**v0.2-r2 — Pairing Real**
+**v0.2-r3 — Pairing Real**
 
 Esta versão inicia o pareamento real entre app, servidor local e navegador:
 

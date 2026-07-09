@@ -20,7 +20,7 @@ function serveFile(req, res) {
     json(res, 200, {
       ok: true,
       app: 'SW Air Link',
-      version: 'v0.2-r2',
+      version: 'v0.2-r3',
       rooms: rooms.size,
     });
     return;
@@ -101,7 +101,7 @@ wss.on('connection', (ws, req) => {
   send(ws, {
     type: 'hello',
     app: 'SW Air Link',
-    version: 'v0.2-r2',
+    version: 'v0.2-r3',
     message: 'Servidor de pareamento conectado.',
   });
 
@@ -211,7 +211,7 @@ wss.on('connection', (ws, req) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log('SW Air Link server v0.2-r2');
+  console.log('SW Air Link server v0.2-r3');
   console.log(`HTTP/WebSocket port: ${PORT}`);
   console.log('Abra o endereço do seu IP local no navegador.');
 });

@@ -271,7 +271,7 @@ class _PairingPageState extends State<PairingPage> {
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'v0.2-r2 • pareamento real inicial, sem espelhamento falso',
+                      'v0.2-r3 • pareamento real inicial, sem espelhamento falso',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Color(0xFF9AA3B4),
