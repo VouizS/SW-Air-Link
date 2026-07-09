@@ -1,7 +1,7 @@
 {
   "name": "sw-air-link-server",
-  "version": "0.2.3",
-  "description": "Servidor local de pareamento do SW Air Link",
+  "version": "0.2.4",
+  "description": "Servidor local de pareamento para SW Air Link",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

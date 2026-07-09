@@ -7,224 +7,126 @@
   <style>
     :root {
       color-scheme: dark;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #090b10;
-      color: #f4f7fb;
+      --bg: #050609;
+      --card: #10131a;
+      --border: #272c38;
+      --text: #f8fafc;
+      --muted: #a9b3c5;
+      --blue: #4f68a8;
+      --soft: #151b29;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 24px;
-      background:
-        radial-gradient(circle at top, rgba(59, 92, 169, 0.25), transparent 36rem),
-        #090b10;
+      background: radial-gradient(circle at top, #182033 0, #050609 42%, #000 100%);
+      color: var(--text);
+      font-family: Arial, sans-serif;
     }
-
     main {
-      width: min(96vw, 720px);
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(18, 22, 31, .92);
-      border-radius: 24px;
-      padding: 28px;
+      width: min(94vw, 520px);
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      padding: 30px;
+      text-align: center;
       box-shadow: 0 24px 80px rgba(0,0,0,.32);
     }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: clamp(28px, 5vw, 44px);
-      letter-spacing: -1px;
+    .icon { font-size: 54px; color: #2d6bdb; margin-bottom: 14px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: -.8px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .code {
+      margin: 22px 0;
+      padding: 22px;
+      border-radius: 20px;
+      background: #000;
+      border: 1px solid var(--border);
+      font-size: 38px;
+      letter-spacing: 8px;
+      font-weight: 800;
     }
-
-    p { color: #b9c4d6; line-height: 1.55; }
-
-    label {
-      display: block;
-      margin: 18px 0 8px;
-      color: #d8deea;
-      font-weight: 700;
-    }
-
-    input {
-      width: 100%;
-      border: 1px solid rgba(255,255,255,.18);
-      background: #090b10;
-      color: #f4f7fb;
-      border-radius: 14px;
-      padding: 14px 16px;
-      font-size: 16px;
-      outline: none;
-    }
-
     button {
       width: 100%;
-      margin-top: 16px;
       border: 0;
-      border-radius: 16px;
-      padding: 15px 18px;
-      font-weight: 800;
-      color: #08101f;
-      background: #ffffff;
-      cursor: pointer;
+      border-radius: 18px;
+      padding: 16px 18px;
       font-size: 16px;
+      font-weight: 800;
+      background: var(--blue);
+      color: white;
+      cursor: pointer;
     }
-
-    button.secondary {
-      background: rgba(255,255,255,.08);
-      color: #f4f7fb;
-      border: 1px solid rgba(255,255,255,.14);
-    }
-
-    .code {
-      margin: 18px 0;
-      padding: 24px;
-      text-align: center;
-      border-radius: 18px;
-      background: #05070a;
-      border: 1px solid rgba(255,255,255,.12);
-      font-size: clamp(34px, 10vw, 70px);
-      font-weight: 900;
-      letter-spacing: .18em;
-      min-height: 120px;
-      display: grid;
-      place-items: center;
-    }
-
     .status {
-      margin-top: 16px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      padding: 16px;
-      color: #c8d2e4;
-    }
-
-    .mirror-placeholder {
       margin-top: 18px;
-      border: 1px dashed rgba(255,255,255,.22);
-      min-height: 220px;
-      border-radius: 18px;
-      display: grid;
-      place-items: center;
-      color: #8fa0b8;
-      text-align: center;
-      padding: 24px;
-      background: rgba(0,0,0,.18);
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--soft);
+      color: var(--muted);
+      border: 1px solid var(--border);
     }
-
-    .small { font-size: 13px; color: #8996aa; }
+    .hint { font-size: 13px; color: #7f8aa0; margin-top: 18px; }
   </style>
 </head>
 <body>
   <main>
+    <div class="icon">▰◜</div>
     <h1>SW Air Link</h1>
-    <p>Crie um código neste navegador e digite no app Android. Esta versão testa o pareamento real, sem espelhamento falso.</p>
-
-    <label for="serverUrl">Servidor WebSocket</label>
-    <input id="serverUrl" spellcheck="false" />
-
-    <button id="createButton">Criar código de conexão</button>
-    <button class="secondary" id="disconnectButton">Desconectar</button>
-
+    <p>Abra o app no celular, informe o servidor WebSocket e digite o código abaixo.</p>
     <div class="code" id="pairCode">------</div>
-
-    <div class="status" id="status">Aguardando início.</div>
-
-    <section class="mirror-placeholder">
-      <div>
-        <strong>Área futura de espelhamento</strong>
-        <p class="small">Quando o MediaProjection entrar no app, a tela aparecerá aqui.</p>
-      </div>
-    </section>
+    <button onclick="newCode()">Gerar novo código</button>
+    <div class="status" id="status">Aguardando telefone...</div>
+    <div class="hint" id="wsHint"></div>
   </main>
 
   <script>
-    const serverInput = document.getElementById('serverUrl');
-    const createButton = document.getElementById('createButton');
-    const disconnectButton = document.getElementById('disconnectButton');
-    const pairCode = document.getElementById('pairCode');
-    const statusBox = document.getElementById('status');
     let socket = null;
+    let roomCode = '';
 
-    function defaultWsUrl() {
-      if (location.protocol === 'http:' || location.protocol === 'https:') {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${protocol}//${location.host}`;
-      }
-      return 'ws://127.0.0.1:8080';
+    function socketUrl() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${location.host}`;
     }
 
     function setStatus(text) {
-      statusBox.textContent = text;
+      document.getElementById('status').textContent = text;
     }
 
-    function closeSocket() {
-      if (socket) {
-        socket.close();
-        socket = null;
-      }
+    function newCode() {
+      roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      document.getElementById('pairCode').textContent = roomCode;
+      connectBrowser();
     }
 
-    function createRoom() {
-      closeSocket();
-      const url = serverInput.value.trim() || defaultWsUrl();
-      localStorage.setItem('swair_server_url', url);
-      pairCode.textContent = '------';
-      setStatus(`Conectando ao servidor ${url} ...`);
+    function connectBrowser() {
+      if (socket) socket.close();
+      const url = socketUrl();
+      document.getElementById('wsHint').textContent = `No app use: ${url}`;
+      setStatus('Aguardando telefone na sala ' + roomCode + '...');
 
       socket = new WebSocket(url);
-
-      socket.addEventListener('open', () => {
-        setStatus('Servidor conectado. Criando sala...');
-        socket.send(JSON.stringify({ type: 'create_room', role: 'web' }));
-      });
-
-      socket.addEventListener('message', (event) => {
-        let data;
-        try { data = JSON.parse(event.data); } catch { return; }
-
-        if (data.type === 'hello') {
-          setStatus(data.message || 'Servidor conectado.');
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'join', role: 'browser', roomCode, version: 'v0.2-r4' }));
+      };
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'joined') setStatus('Navegador conectado. Aguardando telefone...');
+          if (message.type === 'peer_joined') setStatus('Telefone conectado. Espelhamento real entra em versão futura.');
+          if (message.type === 'peer_left') setStatus('Telefone desconectado.');
+          if (message.type === 'error') setStatus(message.message || 'Erro no servidor.');
+        } catch (_) {
+          setStatus('Mensagem desconhecida recebida.');
         }
-
-        if (data.type === 'room_created') {
-          pairCode.textContent = data.roomCode;
-          setStatus(`Código criado: ${data.roomCode}. Abra o app e digite este código.`);
-        }
-
-        if (data.type === 'peer_joined') {
-          setStatus(`${data.deviceName || 'Telefone'} entrou na sala. Pareamento real confirmado.`);
-        }
-
-        if (data.type === 'peer_left') {
-          setStatus('O outro dispositivo saiu da sala.');
-        }
-
-        if (data.type === 'error') {
-          setStatus(`Erro: ${data.message || data.code || 'falha desconhecida'}`);
-        }
-      });
-
-      socket.addEventListener('close', () => {
-        setStatus('Conexão fechada. Crie outro código quando quiser.');
-      });
-
-      socket.addEventListener('error', () => {
-        setStatus('Não consegui conectar ao servidor. Rode airful server ou confira o endereço WebSocket.');
-      });
+      };
+      socket.onerror = () => setStatus('Erro no WebSocket. Verifique se o servidor está rodando.');
+      socket.onclose = () => setStatus('Conexão encerrada.');
     }
 
-    serverInput.value = localStorage.getItem('swair_server_url') || defaultWsUrl();
-    createButton.addEventListener('click', createRoom);
-    disconnectButton.addEventListener('click', () => {
-      closeSocket();
-      pairCode.textContent = '------';
-      setStatus('Desconectado.');
-    });
+    newCode();
   </script>
 </body>
 </html>
