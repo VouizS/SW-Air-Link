@@ -4,7 +4,7 @@ SW Air Link conecta um telefone Android ao navegador de outro dispositivo. O obj
 
 ## Status
 
-v0.3-r3: espelhamento experimental real por frames JPEG capturados via MediaProjection no Android e exibidos no navegador local.
+v0.3-r4: espelhamento experimental real por frames JPEG capturados via MediaProjection no Android e exibidos no navegador local.
 
 ## Regra do projeto
 
