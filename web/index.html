@@ -7,72 +7,128 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #050609;
-      --card: #10131a;
+      --bg: #000;
+      --card: #0a0c11;
       --border: #272c38;
       --text: #f8fafc;
       --muted: #a9b3c5;
       --blue: #4f68a8;
-      --soft: #151b29;
+      --green: #2f7d5c;
+      --soft: #111724;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      background: radial-gradient(circle at top, #182033 0, #050609 42%, #000 100%);
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      padding: 18px;
+      background: #000;
       color: var(--text);
       font-family: Arial, sans-serif;
     }
-    main {
-      width: min(94vw, 520px);
+    aside, main {
       border-radius: 28px;
       border: 1px solid var(--border);
       background: var(--card);
-      padding: 30px;
-      text-align: center;
       box-shadow: 0 24px 80px rgba(0,0,0,.32);
     }
-    .icon { font-size: 54px; color: #2d6bdb; margin-bottom: 14px; }
-    h1 { margin: 0; font-size: 34px; letter-spacing: -.8px; }
+    aside { padding: 24px; }
+    main {
+      min-height: calc(100vh - 36px);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+    .icon { font-size: 44px; color: #2d6bdb; margin-bottom: 10px; }
+    h1 { margin: 0; font-size: 30px; letter-spacing: -.8px; }
     p { color: var(--muted); line-height: 1.5; }
     .code {
-      margin: 22px 0;
-      padding: 22px;
+      margin: 18px 0;
+      padding: 18px;
       border-radius: 20px;
       background: #000;
       border: 1px solid var(--border);
-      font-size: 38px;
+      font-size: 34px;
       letter-spacing: 8px;
       font-weight: 800;
+      text-align: center;
     }
     button {
       width: 100%;
       border: 0;
       border-radius: 18px;
-      padding: 16px 18px;
+      padding: 15px 18px;
       font-size: 16px;
       font-weight: 800;
       background: var(--blue);
       color: white;
       cursor: pointer;
     }
-    .status {
-      margin-top: 18px;
-      padding: 16px;
+    .status, .hint {
+      margin-top: 14px;
+      padding: 14px;
       border-radius: 16px;
       background: var(--soft);
       color: var(--muted);
       border: 1px solid var(--border);
+      word-break: break-word;
     }
-    .hint { font-size: 13px; color: #7f8aa0; margin-top: 18px; }
+    .hint { font-size: 13px; }
+    .screen-wrap {
+      flex: 1;
+      min-height: 420px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at center, #151b29 0, #050609 46%, #000 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    #screen {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: none;
+      background: #000;
+    }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px;
+    }
+    .badge {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.55);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+      backdrop-filter: blur(8px);
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .topbar h2 { margin: 0; font-size: 20px; }
+    .topbar small { color: var(--muted); }
+    @media (max-width: 900px) {
+      body { grid-template-columns: 1fr; }
+      main { min-height: 520px; }
+    }
   </style>
 </head>
 <body>
-  <main>
+  <aside>
     <div class="icon">▰◜</div>
     <h1>SW Air Link</h1>
     <p>Abra o app no celular, informe o servidor WebSocket e digite o código abaixo.</p>
@@ -80,11 +136,30 @@
     <button onclick="newCode()">Gerar novo código</button>
     <div class="status" id="status">Aguardando telefone...</div>
     <div class="hint" id="wsHint"></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h2>Tela do telefone</h2>
+        <small>v0.3-r1 • espelhamento experimental por frames reais</small>
+      </div>
+      <small id="frameInfo">0 frames</small>
+    </div>
+    <div class="screen-wrap">
+      <div class="badge" id="badge">Aguardando espelhamento</div>
+      <img id="screen" alt="Tela espelhada do telefone" />
+      <div class="empty" id="empty">
+        <h2>Nenhuma tela recebida ainda</h2>
+        <p>Conecte o app, toque em “Iniciar espelhamento experimental” e aceite a permissão do Android.</p>
+      </div>
+    </div>
   </main>
 
   <script>
     let socket = null;
     let roomCode = '';
+    let frameCount = 0;
 
     function socketUrl() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -95,28 +170,55 @@
       document.getElementById('status').textContent = text;
     }
 
+    function setBadge(text) {
+      document.getElementById('badge').textContent = text;
+    }
+
     function newCode() {
       roomCode = Math.floor(100000 + Math.random() * 900000).toString();
       document.getElementById('pairCode').textContent = roomCode;
       connectBrowser();
     }
 
+    function showFrame(message) {
+      const img = document.getElementById('screen');
+      const empty = document.getElementById('empty');
+      if (!message.image) return;
+      img.src = `data:image/jpeg;base64,${message.image}`;
+      img.style.display = 'block';
+      empty.style.display = 'none';
+      frameCount += 1;
+      document.getElementById('frameInfo').textContent = `${frameCount} frames`;
+      setBadge(`Recebendo ${message.width || '?'}x${message.height || '?'} • frame ${message.frame || frameCount}`);
+    }
+
     function connectBrowser() {
       if (socket) socket.close();
+      frameCount = 0;
+      document.getElementById('frameInfo').textContent = '0 frames';
       const url = socketUrl();
       document.getElementById('wsHint').textContent = `No app use: ${url}`;
       setStatus('Aguardando telefone na sala ' + roomCode + '...');
+      setBadge('Aguardando telefone');
 
       socket = new WebSocket(url);
       socket.onopen = () => {
-        socket.send(JSON.stringify({ type: 'join', role: 'browser', roomCode, version: 'v0.2-r4' }));
+        socket.send(JSON.stringify({ type: 'join', role: 'browser', roomCode, version: 'v0.3-r1' }));
       };
       socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
           if (message.type === 'joined') setStatus('Navegador conectado. Aguardando telefone...');
-          if (message.type === 'peer_joined') setStatus('Telefone conectado. Espelhamento real entra em versão futura.');
-          if (message.type === 'peer_left') setStatus('Telefone desconectado.');
+          if (message.type === 'peer_joined') {
+            setStatus('Telefone conectado. Agora inicie o espelhamento no app.');
+            setBadge('Telefone conectado');
+          }
+          if (message.type === 'peer_left') {
+            setStatus('Telefone desconectado.');
+            setBadge('Telefone desconectado');
+          }
+          if (message.type === 'mirror_frame') showFrame(message);
+          if (message.type === 'mirror_status') setBadge(message.message || 'Status de espelhamento');
           if (message.type === 'error') setStatus(message.message || 'Erro no servidor.');
         } catch (_) {
           setStatus('Mensagem desconhecida recebida.');

@@ -1,7 +1,7 @@
 name: sw_air_link
 description: App simples para conectar o telefone ao navegador via SW Air Link.
 publish_to: 'none'
-version: 0.2.4+24
+version: 0.3.1+31
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

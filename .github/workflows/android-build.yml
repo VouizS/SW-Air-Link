@@ -35,10 +35,15 @@ jobs:
           from pathlib import Path
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text()
-          perm1 = '<uses-permission android:name="android.permission.INTERNET" />'
-          perm2 = '<uses-permission android:name="android.permission.INTERNET"/>'
-          if perm1 not in text and perm2 not in text:
-              text = text.replace('<application', f'{perm1}\n    <application', 1)
+          permissions = [
+              '<uses-permission android:name="android.permission.INTERNET" />',
+              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />',
+          ]
+          for permission in permissions:
+              compact = permission.replace(' />', '/>')
+              if permission not in text and compact not in text:
+                  text = text.replace('<application', f'{permission}\n    <application', 1)
           if 'android:usesCleartextTraffic' not in text:
               text = text.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
           manifest.write_text(text)
@@ -60,12 +65,12 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p dist
-          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "dist/SW-Air-Link-v0.2-r4-debug.apk"
+          cp mobile/build/app/outputs/flutter-apk/app-debug.apk "dist/SW-Air-Link-v0.3-r1-debug.apk"
           ls -lh dist
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.2-r4-debug
-          path: dist/SW-Air-Link-v0.2-r4-debug.apk
+          name: SW-Air-Link-v0.3-r1-debug
+          path: dist/SW-Air-Link-v0.3-r1-debug.apk
           if-no-files-found: error

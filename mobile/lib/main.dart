@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -78,9 +80,26 @@ class AppColors {
   Color get text => amoled ? const Color(0xFFF8FAFC) : const Color(0xFF171A22);
   Color get muted => amoled ? const Color(0xFFA5ADBA) : const Color(0xFF687083);
   Color get soft => amoled ? const Color(0xFF101522) : const Color(0xFFF0F4FF);
+  Color get dangerSoft => amoled ? const Color(0xFF211116) : const Color(0xFFFFF0F3);
   Color get primary => const Color(0xFF4F68A8);
   Color get blueIcon => const Color(0xFF2D6BDB);
   Color get disabled => amoled ? const Color(0xFF1A1D24) : const Color(0xFFF5F6FA);
+}
+
+class MirrorBridge {
+  static const MethodChannel _method = MethodChannel('sw_air_link/mirror');
+  static const EventChannel _frames = EventChannel('sw_air_link/mirror_frames');
+
+  static Stream<dynamic> frameStream() => _frames.receiveBroadcastStream();
+
+  static Future<String> startCapture() async {
+    final result = await _method.invokeMethod<String>('startCapture');
+    return result ?? 'permission_requested';
+  }
+
+  static Future<void> stopCapture() async {
+    await _method.invokeMethod<void>('stopCapture');
+  }
 }
 
 class HomeScreen extends StatefulWidget {
@@ -104,14 +123,19 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _codeController = TextEditingController();
 
   WebSocket? _socket;
+  StreamSubscription<dynamic>? _frameSub;
   bool _connecting = false;
   bool _connected = false;
+  bool _mirroring = false;
+  int _frameCount = 0;
+  DateTime _lastFrameSent = DateTime.fromMillisecondsSinceEpoch(0);
   String _status = 'Digite o código gerado no navegador.';
 
   AppColors get colors => widget.colors;
 
   @override
   void dispose() {
+    _stopMirror(silent: true);
     _socket?.close();
     _serverController.dispose();
     _codeController.dispose();
@@ -142,13 +166,14 @@ class _HomeScreenState extends State<HomeScreen> {
         'type': 'join',
         'role': 'phone',
         'roomCode': code,
-        'version': 'v0.2-r4',
+        'version': 'v0.3-r1',
       }));
 
       socket.listen(
         _handleSocketMessage,
         onDone: () {
           if (!mounted) return;
+          _stopMirror(silent: true);
           setState(() {
             _connected = false;
             _connecting = false;
@@ -157,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         onError: (_) {
           if (!mounted) return;
+          _stopMirror(silent: true);
           setState(() {
             _connected = false;
             _connecting = false;
@@ -168,13 +194,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _connected = true;
         _connecting = false;
-        _status = 'Telefone conectado à sala $code. A tela ainda não será espelhada nesta versão.';
+        _status = 'Telefone conectado. Agora você pode iniciar o espelhamento experimental.';
       });
     } catch (_) {
       setState(() {
         _connected = false;
         _connecting = false;
-        _status = 'Não consegui conectar. Confira se o servidor local está aberto e se ambos estão na mesma rede.';
+        _status = 'Não consegui conectar. Confira servidor local, IP e mesma rede Wi-Fi.';
       });
     }
   }
@@ -186,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (type == 'joined') {
         setState(() {
-          _status = 'Pareamento confirmado. Aguardando próximos recursos reais.';
+          _status = 'Pareamento confirmado. Pronto para espelhar de forma experimental.';
         });
         return;
       }
@@ -200,6 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (type == 'peer_left') {
+        _stopMirror(silent: true);
         setState(() {
           _status = 'O navegador saiu da sala.';
         });
@@ -219,6 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _disconnect() async {
+    await _stopMirror(silent: true);
     await _socket?.close();
     _socket = null;
     setState(() {
@@ -226,6 +254,112 @@ class _HomeScreenState extends State<HomeScreen> {
       _connecting = false;
       _status = 'Desconectado. Digite outro código para conectar novamente.';
     });
+  }
+
+  Future<void> _startMirror() async {
+    if (!_connected || _socket == null) {
+      setState(() {
+        _status = 'Conecte ao navegador antes de iniciar o espelhamento.';
+      });
+      return;
+    }
+
+    setState(() {
+      _status = 'Solicitando permissão de captura do Android...';
+    });
+
+    await _frameSub?.cancel();
+    _frameSub = MirrorBridge.frameStream().listen(
+      _handleNativeFrame,
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _mirroring = false;
+          _status = 'Erro ao receber frames da captura nativa.';
+        });
+      },
+    );
+
+    try {
+      final result = await MirrorBridge.startCapture();
+      if (!mounted) return;
+      setState(() {
+        _mirroring = true;
+        _status = result == 'capturing'
+            ? 'Espelhamento experimental ativo. Frames enviados: $_frameCount.'
+            : 'Permissão solicitada. Toque em Iniciar agora quando o Android pedir.';
+      });
+    } catch (_) {
+      await _frameSub?.cancel();
+      _frameSub = null;
+      if (!mounted) return;
+      setState(() {
+        _mirroring = false;
+        _status = 'Não consegui iniciar a captura. Permissão negada ou API indisponível.';
+      });
+    }
+  }
+
+  void _handleNativeFrame(dynamic event) {
+    if (_socket == null || !_connected) return;
+    if (event is! Map) return;
+
+    final type = event['type']?.toString() ?? '';
+
+    if (type == 'status') {
+      final message = event['message']?.toString() ?? 'Status de captura recebido.';
+      if (!mounted) return;
+      setState(() {
+        _status = message;
+      });
+      return;
+    }
+
+    if (type != 'frame') return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastFrameSent).inMilliseconds < 280) return;
+    _lastFrameSent = now;
+
+    final image = event['image']?.toString() ?? '';
+    if (image.isEmpty) return;
+
+    _frameCount++;
+    _socket?.add(jsonEncode({
+      'type': 'mirror_frame',
+      'role': 'phone',
+      'version': 'v0.3-r1',
+      'width': event['width'],
+      'height': event['height'],
+      'frame': _frameCount,
+      'image': image,
+    }));
+
+    if (_frameCount % 10 == 0 && mounted) {
+      setState(() {
+        _mirroring = true;
+        _status = 'Espelhamento experimental ativo. Frames enviados: $_frameCount.';
+      });
+    }
+  }
+
+  Future<void> _stopMirror({bool silent = false}) async {
+    await _frameSub?.cancel();
+    _frameSub = null;
+    try {
+      await MirrorBridge.stopCapture();
+    } catch (_) {}
+    _socket?.add(jsonEncode({'type': 'mirror_status', 'message': 'mirror_stopped'}));
+    if (!silent && mounted) {
+      setState(() {
+        _mirroring = false;
+        _status = 'Espelhamento experimental parado.';
+      });
+    } else if (mounted) {
+      setState(() {
+        _mirroring = false;
+      });
+    }
   }
 
   @override
@@ -324,12 +458,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 58,
+                      child: FilledButton.icon(
+                        onPressed: _connected && !_mirroring ? _startMirror : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF2F7D5C),
+                          disabledBackgroundColor: colors.disabled,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        icon: const Icon(Icons.screen_share_rounded),
+                        label: const Text('Iniciar espelhamento experimental'),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 58,
+                      child: OutlinedButton.icon(
+                        onPressed: _mirroring ? () => _stopMirror() : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.muted,
+                          side: BorderSide(color: colors.border),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        icon: const Icon(Icons.stop_screen_share_rounded),
+                        label: const Text('Parar espelhamento'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
                       child: OutlinedButton.icon(
                         onPressed: _connected ? _disconnect : null,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: colors.muted,
                           side: BorderSide(color: colors.border),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         ),
                         icon: const Icon(Icons.link_off_rounded),
                         label: const Text('Desconectar'),
@@ -340,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                       decoration: BoxDecoration(
-                        color: colors.soft,
+                        color: _status.contains('falha') || _status.contains('Erro') ? colors.dangerSoft : colors.soft,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: colors.border),
                       ),
@@ -352,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      'v0.2-r4 • AMOLED opcional, pareamento real inicial',
+                      'v0.3-r1 • espelhamento experimental real',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: colors.muted,

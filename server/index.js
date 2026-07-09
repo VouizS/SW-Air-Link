@@ -14,6 +14,17 @@ function send(ws, data) {
   }
 }
 
+function relay(ws, data) {
+  const room = rooms.get(ws.roomCode);
+  if (!room) {
+    send(ws, { type: 'error', message: 'Sala não encontrada.' });
+    return;
+  }
+  for (const client of room) {
+    if (client !== ws) send(client, data);
+  }
+}
+
 function localAddresses() {
   const nets = os.networkInterfaces();
   const list = [];
@@ -27,7 +38,8 @@ function localAddresses() {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  let filePath = path.join(WEB_DIR, url.pathname === '/' ? 'index.html' : url.pathname);
+  const requested = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\//, '');
+  const filePath = path.join(WEB_DIR, requested);
   if (!filePath.startsWith(WEB_DIR)) {
     res.writeHead(403);
     res.end('Forbidden');
@@ -46,7 +58,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, maxPayload: 12 * 1024 * 1024 });
 
 wss.on('connection', (ws) => {
   ws.roomCode = null;
@@ -61,7 +73,9 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    if (message.type === 'join') {
+    const type = String(message.type || '');
+
+    if (type === 'join') {
       const roomCode = String(message.roomCode || '').trim();
       const role = String(message.role || 'unknown').trim();
       if (!roomCode) {
@@ -81,15 +95,8 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    if (message.type === 'signal') {
-      const room = rooms.get(ws.roomCode);
-      if (!room) {
-        send(ws, { type: 'error', message: 'Sala não encontrada.' });
-        return;
-      }
-      for (const client of room) {
-        if (client !== ws) send(client, { type: 'signal', from: ws.role, payload: message.payload });
-      }
+    if (type === 'signal' || type === 'mirror_frame' || type === 'mirror_status') {
+      relay(ws, { ...message, from: ws.role });
       return;
     }
 
@@ -111,4 +118,5 @@ server.listen(PORT, '0.0.0.0', () => {
   for (const address of localAddresses()) console.log(`  http://${address}:${PORT}`);
   console.log('No app use:');
   for (const address of localAddresses()) console.log(`  ws://${address}:${PORT}`);
+  console.log('Dica: mantenha celular e navegador na mesma rede Wi-Fi.');
 });

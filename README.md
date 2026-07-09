@@ -1,10 +1,10 @@
 # SW Air Link
 
-SW Air Link conecta um telefone Android ao navegador de outro dispositivo. O objetivo é criar uma ponte simples para pareamento, envio de arquivos e, em versões futuras, espelhamento real de tela.
+SW Air Link conecta um telefone Android ao navegador de outro dispositivo. O objetivo é criar uma ponte simples para pareamento, envio de arquivos e espelhamento real de tela.
 
 ## Status
 
-v0.2-r4: pareamento real inicial com opção de Modo Escuro AMOLED.
+v0.3-r1: espelhamento experimental real por frames JPEG capturados via MediaProjection no Android e exibidos no navegador local.
 
 ## Regra do projeto
 
