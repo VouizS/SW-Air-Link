@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'type': 'join',
         'role': 'phone',
         'roomCode': code,
-        'version': 'v0.3-r4',
+        'version': 'v0.3-r5',
       }));
 
       socket.listen(
@@ -337,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _socket?.add(jsonEncode({
       'type': 'mirror_frame',
       'role': 'phone',
-      'version': 'v0.3-r4',
+      'version': 'v0.3-r5',
       'width': event['width'],
       'height': event['height'],
       'frame': _frameCount,
@@ -525,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      'v0.3-r4 • espelhamento experimental real',
+                      'v0.3-r5 • MediaProjection Crash Guard',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: colors.muted,
