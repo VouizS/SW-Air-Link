@@ -142,7 +142,7 @@
     <div class="topbar">
       <div>
         <h2>Tela do telefone</h2>
-        <small>v0.3-r2 • espelhamento experimental por frames reais</small>
+        <small>v0.3-r3 • espelhamento experimental por frames reais</small>
       </div>
       <small id="frameInfo">0 frames</small>
     </div>
@@ -203,7 +203,7 @@
 
       socket = new WebSocket(url);
       socket.onopen = () => {
-        socket.send(JSON.stringify({ type: 'join', role: 'browser', roomCode, version: 'v0.3-r2' }));
+        socket.send(JSON.stringify({ type: 'join', role: 'browser', roomCode, version: 'v0.3-r3' }));
       };
       socket.onmessage = (event) => {
         try {
