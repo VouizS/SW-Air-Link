@@ -37,7 +37,11 @@ jobs:
           cp app_templates/main.dart lib/main.dart
           mkdir -p test
           cp app_templates/widget_test.dart test/widget_test.dart
-          cp -R native_templates/android/* android/
+          if [ -d native_templates/android ] && find native_templates/android -mindepth 1 -print -quit | grep -q .; then
+            cp -R native_templates/android/* android/
+          else
+            echo "native_templates/android vazio ou ausente. Build seguirá sem nativo customizado."
+          fi
           flutter pub get
 
       - name: Analyze Flutter project
@@ -50,7 +54,7 @@ jobs:
           TEST_EXIT=$?
           set -e
           if [ "$TEST_EXIT" -ne 0 ]; then
-            echo "Flutter test failed, but this is an experimental debug build. Continuing to APK build."
+            echo "Flutter test failed, but experimental debug APK will continue."
           fi
 
       - name: Build debug APK
@@ -59,12 +63,12 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p ../dist
-          cp build/app/outputs/flutter-apk/app-debug.apk "../dist/SW-Air-Link-v0.3-r8-debug.apk"
+          cp build/app/outputs/flutter-apk/app-debug.apk "../dist/SW-Air-Link-v0.3-r9-debug.apk"
           ls -lh ../dist
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SW-Air-Link-v0.3-r8-debug
-          path: dist/SW-Air-Link-v0.3-r8-debug.apk
+          name: SW-Air-Link-v0.3-r9-debug
+          path: dist/SW-Air-Link-v0.3-r9-debug.apk
           if-no-files-found: error
